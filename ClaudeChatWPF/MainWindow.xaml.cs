@@ -1,16 +1,21 @@
-﻿using System.Collections.ObjectModel;
+﻿// MainWindow.xaml.cs - обновленная версия
+using System.Collections.ObjectModel;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
 using ClaudeChatWPF.Data;
 using ClaudeChatWPF.Models;
+using ClaudeChatWPF.Models.ApiModels;
+using ClaudeChatWPF.Services;
 using ClaudeChatWPF.ViewModels;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace ClaudeChatWPF
 {
     public partial class MainWindow : Window
     {
+        private readonly IClaudeApiService _claudeApiService;
         private ObservableCollection<ChatThread> _chatThreads;
         private ObservableCollection<MessageViewModel> _messages;
         private ChatThread? _currentChatThread;
@@ -19,6 +24,12 @@ namespace ClaudeChatWPF
         public MainWindow()
         {
             InitializeComponent();
+
+            // Инициализация DI контейнера
+            var services = ConfigureServices();
+            var serviceProvider = services.BuildServiceProvider();
+
+            _claudeApiService = serviceProvider.GetRequiredService<IClaudeApiService>();
 
             _chatThreads = new ObservableCollection<ChatThread>();
             _messages = new ObservableCollection<MessageViewModel>();
@@ -35,7 +46,37 @@ namespace ClaudeChatWPF
             // Привязка событий
             MessageInput.TextChanged += MessageInput_TextChanged;
 
+            // Проверка конфигурации API
+            CheckApiConfiguration();
+
             this.Title = "Claude Chat - Ready";
+        }
+
+        private IServiceCollection ConfigureServices()
+        {
+            var services = new ServiceCollection();
+            services.AddClaudeServices();
+            return services;
+        }
+
+        private void CheckApiConfiguration()
+        {
+            if (!_claudeApiService.IsConfigured)
+            {
+                MessageBox.Show(
+                    "Claude API не настроен.\n\n" +
+                    "Пожалуйста, добавьте ваш API ключ в файл appsettings.json:\n" +
+                    "{\n" +
+                    "  \"Claude\": {\n" +
+                    "    \"ApiKey\": \"your-api-key-here\"\n" +
+                    "  }\n" +
+                    "}",
+                    "Конфигурация API",
+                    MessageBoxButton.OK,
+                    MessageBoxImage.Warning);
+
+                this.Title = "Claude Chat - API Not Configured";
+            }
         }
 
         private void InitializeDatabase()
@@ -47,8 +88,8 @@ namespace ClaudeChatWPF
             }
             catch (Exception ex)
             {
-                MessageBox.Show($"Database initialization error: {ex.Message}",
-                               "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+                MessageBox.Show($"Ошибка инициализации базы данных: {ex.Message}",
+                               "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
             }
         }
 
@@ -69,8 +110,8 @@ namespace ClaudeChatWPF
             }
             catch (Exception ex)
             {
-                MessageBox.Show($"Error loading chats: {ex.Message}",
-                               "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+                MessageBox.Show($"Ошибка загрузки чатов: {ex.Message}",
+                               "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
             }
         }
 
@@ -90,13 +131,12 @@ namespace ClaudeChatWPF
                     _messages.Add(MessageViewModel.FromMessage(message));
                 }
 
-                // Прокрутка к последнему сообщению
                 ScrollToBottom();
             }
             catch (Exception ex)
             {
-                MessageBox.Show($"Error loading messages: {ex.Message}",
-                               "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+                MessageBox.Show($"Ошибка загрузки сообщений: {ex.Message}",
+                               "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
             }
         }
 
@@ -125,8 +165,8 @@ namespace ClaudeChatWPF
             }
             catch (Exception ex)
             {
-                MessageBox.Show($"Error creating new chat: {ex.Message}",
-                               "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+                MessageBox.Show($"Ошибка создания нового чата: {ex.Message}",
+                               "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
             }
         }
 
@@ -155,8 +195,8 @@ namespace ClaudeChatWPF
             if (_currentChatThread == null) return;
 
             var result = MessageBox.Show(
-                "Are you sure you want to clear all messages in this chat?",
-                "Clear Chat",
+                "Вы уверены, что хотите очистить все сообщения в этом чате?",
+                "Очистить чат",
                 MessageBoxButton.YesNo,
                 MessageBoxImage.Question);
 
@@ -175,15 +215,17 @@ namespace ClaudeChatWPF
                 }
                 catch (Exception ex)
                 {
-                    MessageBox.Show($"Error clearing chat: {ex.Message}",
-                                   "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+                    MessageBox.Show($"Ошибка очистки чата: {ex.Message}",
+                                   "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
                 }
             }
         }
 
         private void MessageInput_TextChanged(object sender, TextChangedEventArgs e)
         {
-            SendButton.IsEnabled = !string.IsNullOrWhiteSpace(MessageInput.Text) && !_isLoading;
+            SendButton.IsEnabled = !string.IsNullOrWhiteSpace(MessageInput.Text) &&
+                                  !_isLoading &&
+                                  _claudeApiService.IsConfigured;
         }
 
         private void MessageInput_KeyDown(object sender, KeyEventArgs e)
@@ -206,7 +248,9 @@ namespace ClaudeChatWPF
 
         private async void SendMessage_Click(object sender, RoutedEventArgs e)
         {
-            if (_currentChatThread == null || string.IsNullOrWhiteSpace(MessageInput.Text))
+            if (_currentChatThread == null ||
+                string.IsNullOrWhiteSpace(MessageInput.Text) ||
+                !_claudeApiService.IsConfigured)
                 return;
 
             var messageText = MessageInput.Text.Trim();
@@ -260,14 +304,13 @@ namespace ClaudeChatWPF
                     context.SaveChanges();
                 }
 
-                // Здесь будет вызов API Claude
-                // Пока добавляем заглушку
-                await SimulateClaudeResponse();
+                // Получаем ответ от Claude
+                await GetClaudeResponse();
             }
             catch (Exception ex)
             {
-                MessageBox.Show($"Error sending message: {ex.Message}",
-                               "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+                MessageBox.Show($"Ошибка отправки сообщения: {ex.Message}",
+                               "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
             }
             finally
             {
@@ -275,43 +318,71 @@ namespace ClaudeChatWPF
             }
         }
 
-        private async Task SimulateClaudeResponse()
+        private async Task GetClaudeResponse()
         {
-            // Временная заглушка для имитации ответа Claude
-            await Task.Delay(2000); // Имитация задержки API
-
-            var response = "This is a placeholder response. Claude API integration will be added next.";
-
-            var assistantMessage = new MessageViewModel
+            try
             {
-                Role = "assistant",
-                Content = response,
-                Timestamp = DateTime.Now
-            };
+                // Собираем историю сообщений для контекста
+                var claudeMessages = new List<ClaudeMessage>();
 
-            _messages.Add(assistantMessage);
-            ScrollToBottom();
+                foreach (var msg in _messages.TakeLast(10)) // Берем последние 10 сообщений для контекста
+                {
+                    claudeMessages.Add(new ClaudeMessage
+                    {
+                        Role = msg.Role,
+                        Content = msg.Content
+                    });
+                }
 
-            // Сохраняем ответ в базу данных
-            using var context = new ChatDbContext();
-            var dbMessage = assistantMessage.ToMessage(_currentChatThread!.Id);
-            context.Messages.Add(dbMessage);
+                // Отправляем запрос к Claude API
+                var response = await _claudeApiService.SendMessageAsync(claudeMessages);
 
-            // Обновляем время последнего обновления чата
-            var thread = context.ChatThreads.Find(_currentChatThread.Id);
-            if (thread != null)
-            {
-                thread.LastUpdated = DateTime.Now;
+                // Добавляем ответ ассистента
+                var assistantMessage = new MessageViewModel
+                {
+                    Role = "assistant",
+                    Content = response,
+                    Timestamp = DateTime.Now
+                };
+
+                _messages.Add(assistantMessage);
+                ScrollToBottom();
+
+                // Сохраняем ответ в базу данных
+                using var context = new ChatDbContext();
+                var dbMessage = assistantMessage.ToMessage(_currentChatThread!.Id);
+                context.Messages.Add(dbMessage);
+
+                // Обновляем время последнего обновления чата
+                var thread = context.ChatThreads.Find(_currentChatThread.Id);
+                if (thread != null)
+                {
+                    thread.LastUpdated = DateTime.Now;
+                }
+
+                context.SaveChanges();
             }
+            catch (Exception ex)
+            {
+                var errorMessage = new MessageViewModel
+                {
+                    Role = "assistant",
+                    Content = $"Извините, произошла ошибка: {ex.Message}",
+                    Timestamp = DateTime.Now
+                };
 
-            context.SaveChanges();
+                _messages.Add(errorMessage);
+                ScrollToBottom();
+            }
         }
 
         private void SetLoadingState(bool isLoading)
         {
             _isLoading = isLoading;
             LoadingOverlay.Visibility = isLoading ? Visibility.Visible : Visibility.Collapsed;
-            SendButton.IsEnabled = !isLoading && !string.IsNullOrWhiteSpace(MessageInput.Text);
+            SendButton.IsEnabled = !isLoading &&
+                                  !string.IsNullOrWhiteSpace(MessageInput.Text) &&
+                                  _claudeApiService.IsConfigured;
             MessageInput.IsEnabled = !isLoading;
         }
     }

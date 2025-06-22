@@ -23,7 +23,6 @@
     <Folder Include="Helpers\" />
     <Folder Include="Resources\" />
     <Folder Include="Views\" />
-    <Folder Include="Services\" />
   </ItemGroup>
   <ItemGroup>
     <PackageReference Include="CommunityToolkit.Mvvm" Version="8.4.0" />
