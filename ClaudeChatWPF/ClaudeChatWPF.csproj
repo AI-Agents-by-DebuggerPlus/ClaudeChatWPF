@@ -23,7 +23,6 @@
     <Folder Include="Helpers\" />
     <Folder Include="Resources\" />
     <Folder Include="Views\" />
-    <Folder Include="ViewModels\" />
     <Folder Include="Services\" />
   </ItemGroup>
   <ItemGroup>

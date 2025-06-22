@@ -5,8 +5,319 @@
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:local="clr-namespace:ClaudeChatWPF"
         mc:Ignorable="d"
-        Title="MainWindow" Height="450" Width="800">
-    <Grid>
+        Title="Claude Chat" Height="700" Width="1000" MinHeight="500" MinWidth="800"
+        WindowStartupLocation="CenterScreen">
 
+    <Window.Resources>
+        <!-- Стили для современного дизайна -->
+        <Style TargetType="Button" x:Key="ModernButton">
+            <Setter Property="Background" Value="#007ACC"/>
+            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Padding" Value="12,8"/>
+            <Setter Property="FontWeight" Value="Medium"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border Background="{TemplateBinding Background}" 
+                                CornerRadius="6" 
+                                BorderThickness="{TemplateBinding BorderThickness}"
+                                BorderBrush="{TemplateBinding BorderBrush}">
+                            <ContentPresenter HorizontalAlignment="Center" 
+                                            VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter Property="Background" Value="#005A9E"/>
+                            </Trigger>
+                            <Trigger Property="IsPressed" Value="True">
+                                <Setter Property="Background" Value="#004578"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <Style TargetType="Button" x:Key="IconButton">
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Padding" Value="8"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border Background="{TemplateBinding Background}" 
+                                CornerRadius="4" 
+                                BorderThickness="{TemplateBinding BorderThickness}"
+                                BorderBrush="{TemplateBinding BorderBrush}">
+                            <ContentPresenter HorizontalAlignment="Center" 
+                                            VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter Property="Background" Value="#F0F0F0"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <Style TargetType="ListBoxItem" x:Key="ChatListItem">
+            <Setter Property="Padding" Value="12,8"/>
+            <Setter Property="Margin" Value="4,2"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="ListBoxItem">
+                        <Border Background="{TemplateBinding Background}" 
+                                CornerRadius="6" 
+                                Padding="{TemplateBinding Padding}">
+                            <ContentPresenter/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter Property="Background" Value="#F5F5F5"/>
+                            </Trigger>
+                            <Trigger Property="IsSelected" Value="True">
+                                <Setter Property="Background" Value="#E3F2FD"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <!-- Стиль для сообщений пользователя -->
+        <Style TargetType="Border" x:Key="UserMessage">
+            <Setter Property="Background" Value="#007ACC"/>
+            <Setter Property="CornerRadius" Value="12,12,4,12"/>
+            <Setter Property="Padding" Value="12,8"/>
+            <Setter Property="Margin" Value="40,4,8,4"/>
+            <Setter Property="HorizontalAlignment" Value="Right"/>
+        </Style>
+
+        <!-- Стиль для сообщений ассистента -->
+        <Style TargetType="Border" x:Key="AssistantMessage">
+            <Setter Property="Background" Value="#F1F1F1"/>
+            <Setter Property="CornerRadius" Value="12,12,12,4"/>
+            <Setter Property="Padding" Value="12,8"/>
+            <Setter Property="Margin" Value="8,4,40,4"/>
+            <Setter Property="HorizontalAlignment" Value="Left"/>
+        </Style>
+    </Window.Resources>
+
+    <Grid>
+        <Grid.ColumnDefinitions>
+            <!-- Панель со списком чатов -->
+            <ColumnDefinition Width="300" MinWidth="250"/>
+            <ColumnDefinition Width="5"/>
+            <!-- Основная область чата -->
+            <ColumnDefinition Width="*"/>
+        </Grid.ColumnDefinitions>
+
+        <!-- Левая панель - список чатов -->
+        <Border Grid.Column="0" Background="#FAFAFA" BorderBrush="#E0E0E0" BorderThickness="0,0,1,0">
+            <Grid>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="*"/>
+                </Grid.RowDefinitions>
+
+                <!-- Заголовок и кнопка нового чата -->
+                <Border Grid.Row="0" Background="White" BorderBrush="#E0E0E0" BorderThickness="0,0,0,1" Padding="16,12">
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="Auto"/>
+                        </Grid.ColumnDefinitions>
+
+                        <TextBlock Grid.Column="0" Text="Chats" FontSize="18" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                        <Button Grid.Column="1" Style="{StaticResource IconButton}" Click="NewChat_Click" ToolTip="New Chat">
+                            <TextBlock Text="+" FontSize="20" FontWeight="Bold"/>
+                        </Button>
+                    </Grid>
+                </Border>
+
+                <!-- Список чатов -->
+                <ListBox Grid.Row="1" 
+                         Name="ChatListBox" 
+                         Background="Transparent" 
+                         BorderThickness="0"
+                         ScrollViewer.HorizontalScrollBarVisibility="Disabled"
+                         SelectionChanged="ChatListBox_SelectionChanged"
+                         ItemContainerStyle="{StaticResource ChatListItem}">
+                    <ListBox.ItemTemplate>
+                        <DataTemplate>
+                            <Grid>
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="Auto"/>
+                                </Grid.RowDefinitions>
+
+                                <TextBlock Grid.Row="0" 
+                                          Text="{Binding Title}" 
+                                          FontWeight="Medium" 
+                                          TextTrimming="CharacterEllipsis"
+                                          Margin="0,0,0,2"/>
+
+                                <TextBlock Grid.Row="1" 
+                                          Text="{Binding LastUpdated, StringFormat='{}{0:MMM dd, HH:mm}'}" 
+                                          FontSize="11" 
+                                          Foreground="#666666"/>
+                            </Grid>
+                        </DataTemplate>
+                    </ListBox.ItemTemplate>
+                </ListBox>
+            </Grid>
+        </Border>
+
+        <!-- Разделитель -->
+        <GridSplitter Grid.Column="1" 
+                      HorizontalAlignment="Stretch" 
+                      Background="#E0E0E0" 
+                      ShowsPreview="True"/>
+
+        <!-- Правая панель - область чата -->
+        <Grid Grid.Column="2">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="*"/>
+                <RowDefinition Height="Auto"/>
+            </Grid.RowDefinitions>
+
+            <!-- Заголовок чата -->
+            <Border Grid.Row="0" Background="White" BorderBrush="#E0E0E0" BorderThickness="0,0,0,1" Padding="20,12">
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
+
+                    <TextBlock Grid.Column="0" 
+                              Name="ChatTitleText" 
+                              Text="Select a chat or start a new one" 
+                              FontSize="16" 
+                              FontWeight="Medium" 
+                              VerticalAlignment="Center"/>
+
+                    <Button Grid.Column="1" 
+                           Style="{StaticResource IconButton}" 
+                           Click="ClearChat_Click" 
+                           ToolTip="Clear Chat"
+                           Name="ClearChatButton"
+                           Visibility="Collapsed">
+                        <TextBlock Text="🗑️" FontSize="16"/>
+                    </Button>
+                </Grid>
+            </Border>
+
+            <!-- Область сообщений -->
+            <ScrollViewer Grid.Row="1" 
+                         Name="MessagesScrollViewer"
+                         VerticalScrollBarVisibility="Auto" 
+                         HorizontalScrollBarVisibility="Disabled"
+                         Padding="0,8">
+                <ItemsControl Name="MessagesPanel" Margin="8,0">
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate>
+                            <Grid Margin="0,4">
+                                <!-- Сообщение пользователя -->
+                                <Border Style="{StaticResource UserMessage}" 
+                                       Visibility="{Binding IsUser, Converter={x:Static local:BooleanToVisibilityConverter.Instance}}">
+                                    <TextBlock Text="{Binding Content}" 
+                                              Foreground="White" 
+                                              TextWrapping="Wrap"
+                                              LineHeight="20"/>
+                                </Border>
+
+                                <!-- Сообщение ассистента -->
+                                <Border Style="{StaticResource AssistantMessage}" 
+                                       Visibility="{Binding IsAssistant, Converter={x:Static local:BooleanToVisibilityConverter.Instance}}">
+                                    <TextBlock Text="{Binding Content}" 
+                                              Foreground="#333333" 
+                                              TextWrapping="Wrap"
+                                              LineHeight="20"/>
+                                </Border>
+                            </Grid>
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+            </ScrollViewer>
+
+            <!-- Панель ввода -->
+            <Border Grid.Row="2" Background="White" BorderBrush="#E0E0E0" BorderThickness="0,1,0,0" Padding="16">
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
+
+                    <Border Grid.Column="0" 
+                           BorderBrush="#CCCCCC" 
+                           BorderThickness="1" 
+                           CornerRadius="20" 
+                           Padding="16,8">
+                        <TextBox Name="MessageInput" 
+                                BorderThickness="0" 
+                                Background="Transparent"
+                                FontSize="14"
+                                VerticalAlignment="Center"
+                                AcceptsReturn="True"
+                                TextWrapping="Wrap"
+                                MaxHeight="120"
+                                KeyDown="MessageInput_KeyDown"
+                                Text="{Binding MessageText, UpdateSourceTrigger=PropertyChanged}">
+                            <TextBox.Style>
+                                <Style TargetType="TextBox">
+                                    <Style.Triggers>
+                                        <Trigger Property="Text" Value="">
+                                            <Setter Property="Background">
+                                                <Setter.Value>
+                                                    <VisualBrush AlignmentX="Left" AlignmentY="Center" Stretch="None">
+                                                        <VisualBrush.Visual>
+                                                            <TextBlock Text="Type your message..." 
+                                                                      Foreground="#AAAAAA" 
+                                                                      FontSize="14"/>
+                                                        </VisualBrush.Visual>
+                                                    </VisualBrush>
+                                                </Setter.Value>
+                                            </Setter>
+                                        </Trigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </TextBox.Style>
+                        </TextBox>
+                    </Border>
+
+                    <Button Grid.Column="1" 
+                           Style="{StaticResource ModernButton}" 
+                           Margin="12,0,0,0"
+                           Click="SendMessage_Click"
+                           Name="SendButton"
+                           IsEnabled="False">
+                        <TextBlock Text="Send" FontWeight="Medium"/>
+                    </Button>
+                </Grid>
+            </Border>
+        </Grid>
+
+        <!-- Индикатор загрузки -->
+        <Grid Grid.ColumnSpan="3" 
+              Name="LoadingOverlay" 
+              Background="#80000000" 
+              Visibility="Collapsed">
+            <Border Background="White" 
+                   CornerRadius="8" 
+                   Padding="24,16" 
+                   HorizontalAlignment="Center" 
+                   VerticalAlignment="Center">
+                <StackPanel Orientation="Horizontal">
+                    <TextBlock Text="🤖" FontSize="20" Margin="0,0,8,0"/>
+                    <TextBlock Text="Claude is thinking..." FontSize="14" VerticalAlignment="Center"/>
+                </StackPanel>
+            </Border>
+        </Grid>
     </Grid>
 </Window>
